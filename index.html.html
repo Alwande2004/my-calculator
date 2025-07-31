@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lurdi Shilunga</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .formula-card {
+            transition: all 0.3s ease;
+        }
+        .formula-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .input-highlight {
+            background-color: #f0f9ff;
+            border-left: 3px solid #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Wen</h1>
+            <p class="text-gray-600 mt-2">Calculate various financial formulas with ease</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Formula Selection Sidebar -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">Formulas</h2>
+                <div class="space-y-2" id="formulaList">
+                    <!-- Formulas will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Calculator Main Area -->
+            <div class="lg:col-span-3">
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <!-- Formula Display -->
+                    <div id="formulaDisplay" class="mb-6 p-4 bg-blue-50 rounded border border-blue-100">
+                        <h3 class="font-medium text-blue-800">Selected Formula</h3>
+                        <div id="currentFormula" class="mt-1 text-sm text-gray-700"></div>
+                        <div id="formulaNote" class="mt-1 text-xs text-blue-600"></div>
+                    </div>
+
+                    <!-- Solve For Selection -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Solve For</label>
+                        <div id="solveForOptions" class="flex flex-wrap gap-3">
+                            <!-- Options will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Input Fields -->
+                    <div id="inputFields" class="space-y-4 mb-6">
+                        <!-- Fields will be populated by JavaScript -->
+                    </div>
+
+                    <!-- Calculate Button -->
+                    <button id="calculateBtn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Calculate
+                    </button>
+
+                    <!-- Error Display -->
+                    <div id="errorDisplay" class="mt-4 hidden p-3 bg-red-50 text-red-700 rounded text-sm"></div>
+
+                    <!-- Result Display -->
+                    <div id="resultDisplay" class="hidden mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
+                        <h3 class="font-medium text-green-800 mb-2">Result</h3>
+                        <div id="calculationSteps" class="text-sm text-gray-700 mb-2"></div>
+                        <div id="resultValue" class="text-lg font-semibold text-green-700"></div>
+                    </div>
+                </div>
+
+                <!-- Formula Reference -->
+                <div class="mt-6 bg-white p-6 rounded-lg shadow">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800">Formula Reference</h2>
+                    <div id="formulaReference" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Formula cards will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // ─────────────────────────────────────────────────────────────────
+            // 1) All financial formulas and their algebraic forms
+            // ─────────────────────────────────────────────────────────────────
+            const formulas = {
+                simpleInterest: {
+                    name: "Simple Interest",
+                    vars: ['S','P','r','t'],
+                    formula: "S = P * (1 + r * t)",
+                    description: "Calculates the future value of an investment with simple interest",
+                    algebra: {
+                        S: "P * (1 + r * t)",
+                        P: "S / (1 + r * t)",
+                        r: "(S / P - 1) / t",
+                        t: "(S / P - 1) / r"
+                    }
+                },
+                compoundInterest: {
+                    name: "Compound Interest",
+                    vars: ['S','P','j_m','m','t'],
+                    formula: "S = P * (1 + j_m/m)^(m*t)",
+                    description: "Calculates the future value of an investment with compound interest",
+                    algebra: {
+                        S: "P * (1 + j_m/m)^(m*t)",
+                        P: "S / (1 + j_m/m)^(m*t)",
+                        j_m: "m * ((S/P)^(1/(m*t)) - 1)",
+                        t: "ln(S/P) / (m * ln(1 + j_m/m))",
+                        m: "requires iterative solution"
+                    },
+                    note: "j_m is the nominal annual interest rate"
+                },
+                simpleDiscount: {
+                    name: "Simple Discount",
+                    vars: ['P','S','d','t'],
+                    formula: "P = S * (1 - d * t)",
+                    description: "Calculates the present value of a future amount using simple discount",
+                    algebra: {
+                        P: "S * (1 - d * t)",
+                        S: "P / (1 - d * t)",
+                        d: "(1 - P/S) / t",
+                        t: "(1 - P/S) / d"
+                    }
+                },
+                effectiveInterestRate: {
+                    name: "Effective Interest Rate",
+                    vars: ['EAR','j_m','m'],
+                    formula: "EAR = (1 + j_m/m)^m - 1",
+                    description: "Converts a nominal rate to an effective annual rate",
+                    algebra: {
+                        EAR: "(1 + j_m/m)^m - 1",
+                        j_m: "m * ((1 + EAR)^(1/m) - 1)",
+                        m: "requires iterative solution"
+                    }
+                },
+                convertContToEffective: {
+                    name: "Continuous to Effective Rate",
+                    vars: ['EAR','c'],
+                    formula: "EAR = e^c - 1",
+                    description: "Converts a continuous rate to an effective annual rate",
+                    algebra: { 
+                        EAR: "e^c - 1", 
+                        c: "ln(1 + EAR)" 
+                    }
+                },
+                convertingInterest: {
+                    name: "Converting Interest Rates",
+                    vars: ['i_new','i_old','m_old','m_new'],
+                    formula: "i_new = m_new * ((1 + i_old/m_old)^(m_old/m_new) - 1)",
+                    description: "Converts between different compounding frequencies",
+                    algebra: {
+                        i_new: "m_new * ((1 + i_old/m_old)^(m_old/m_new)-1)",
+                        i_old: "m_old * ((1 + i_new/m_new)^(m_new/m_old)-1)"
+                    }
+                },
+                futureValueAnnuity: {
+                    name: "Future Value of Annuity",
+                    vars: ['S','R','i','n'],
+                    formula: "S = R * ((1 + i)^n - 1) / i",
+                    description: "Calculates the future value of a series of regular payments",
+                    algebra: {
+                        S: "R * ((1 + i)^n - 1) / i",
+                        R: "S * i / ((1 + i)^n - 1)",
+                        i: "requires iterative solution",
+                        n: "ln(1 + S*i/R)/ln(1 + i)"
+                    }
+                },
+                presentValueAnnuity: {
+                    name: "Present Value of Annuity",
+                    vars: ['P','R','i','n'],
+                    formula: "P = R * (1 - (1 + i)^-n) / i",
+                    description: "Calculates the present value of a series of regular payments",
+                    algebra: {
+                        P: "R * (1 - (1 + i)^-n) / i",
+                        R: "P * i / (1 - (1 + i)^-n)",
+                        i: "requires iterative solution",
+                        n: "-ln(1 - P*i/R)/ln(1 + i)"
+                    }
+                },
+                annuityDue: {
+                    name: "Annuity Due",
+                    vars: ['S','R','i','n'],
+                    formula: "S = R * ((1 + i)^n - 1)/i * (1 + i)",
+                    description: "Calculates the future value of an annuity with payments at the beginning of each period",
+                    algebra: {
+                        S: "R * ((1 + i)^n - 1)/i * (1 + i)",
+                        R: "S / [((1 + i)^n - 1)/i * (1 + i)]",
+                        i: "requires iterative solution",
+                        n: "ln(1 + S*i/(R*(1+i))) / ln(1+i)"
+                    }
+                },
+                increasingAnnuity: {
+                    name: "Increasing Annuity",
+                    vars: ['S','R','Q','i','n'],
+                    formula: "S = (R + Q/i)*((1 + i)^n - 1)/i - n*Q/i",
+                    description: "Calculates the future value of an annuity with increasing payments",
+                    note: "requires iterative solution"
+                },
+                perpetuity: {
+                    name: "Perpetuity",
+                    vars: ['P','R','i'],
+                    formula: "P = R / i",
+                    description: "Calculates the present value of an infinite series of regular payments",
+                    algebra: { 
+                        P: "R / i", 
+                        R: "P * i", 
+                        i: "R / P" 
+                    }
+                },
+                netPresentValue: {
+                    name: "Net Present Value",
+                    vars: ['NPV','cashflows','r'],
+                    formula: "NPV = Σ CFₜ/(1 + r)^t",
+                    description: "Calculates the net present value of a series of cash flows",
+                    note: "requires array of cash flows"
+                },
+                profitabilityIndex: {
+                    name: "Profitability Index",
+                    vars: ['PI','NPV','initialInvestment'],
+                    formula: "PI = (NPV + initialInvestment)/initialInvestment",
+                    description: "Measures the ratio of payoff to investment",
+                    algebra: {
+                        PI: "(NPV + I₀)/I₀",
+                        NPV: "PI*I₀ - I₀"
+                    }
+                },
+                internalRateReturn: {
+                    name: "Internal Rate of Return",
+                    vars: ['IRR','cashflows'],
+                    formula: "Σ CFₜ/(1 + IRR)^t = 0",
+                    description: "Calculates the discount rate that makes NPV zero",
+                    note: "requires iterative solution"
+                },
+                mIRR: {
+                    name: "Modified IRR",
+                    vars: ['MIRR','cashflows','financeRate','reinvestmentRate'],
+                    formula: "MIRR = (FV⁺/PV⁻)^(1/n) - 1",
+                    description: "Modified version of IRR that assumes different finance and reinvestment rates",
+                    algebra: {
+                        "FV⁺": "-PV⁻ * (1 + MIRR)^n",
+                        "PV⁻": "-FV⁺ / (1 + MIRR)^n",
+                        "CF_t⁺": "FV⁺ / (1 + r_r)^(n - t)",
+                        "CF_t⁻": "-PV⁻ * (1 + r_f)^t",
+                        "r_r": "(FV⁺/CF_t⁺)^(1/(n - t)) - 1",
+                        "r_f": "(-CF_t⁻/PV⁻)^(1/t) - 1"
+                    },
+                    note: "discount negatives @ financeRate; compound positives @ reinvestmentRate"
+                },
+                bondPrice: {
+                    name: "Bond Price",
+                    vars: ['P','F','C','y','n'],
+                    formula: "P = C*(1 - (1+y)^-n)/y + F/(1+y)^n",
+                    description: "Calculates the price of a bond given its coupon rate and yield"
+                },
+                accruedInterest: {
+                    name: "Accrued Interest",
+                    vars: ['AI','C','daysAccrued','daysInPeriod'],
+                    formula: "AI = C * daysAccrued/daysInPeriod",
+                    description: "Calculates the accrued interest on a bond between coupon payments"
+                },
+                realCostOfLoan: {
+                    name: "Real Cost of Loan",
+                    vars: ['T_r','R','r','n','P'],
+                    formula: "T_r = R*(1 - (1+r)^-n)/r - P",
+                    description: "Calculates the real cost of a loan considering repayments",
+                    note: "requires iterative solution"
+                },
+                arithmeticMean: {
+                    name: "Arithmetic Mean",
+                    vars: ['mean','data'],
+                    formula: "mean = Σxᵢ / n",
+                    description: "Calculates the average of a set of numbers"
+                },
+                weightedMean: {
+                    name: "Weighted Mean",
+                    vars: ['weightedMean','data','weights'],
+                    formula: "weightedMean = Σ(xᵢ·wᵢ)/Σwᵢ",
+                    description: "Calculates the weighted average of a set of numbers"
+                },
+                variance: {
+                    name: "Variance",
+                    vars: ['variance','data'],
+                    formula: "variance = Σ(xᵢ - mean)²/(n - 1)",
+                    description: "Calculates the variance of a set of numbers (sample variance)"
+                },
+                standardDeviation: {
+                    name: "Standard Deviation",
+                    vars: ['stdDev','data'],
+                    formula: "stdDev = √variance",
+                    description: "Calculates the standard deviation of a set of numbers"
+                },
+                slopeLine: {
+                    name: "Slope of a Line",
+                    vars: ['slope','x1','y1','x2','y2'],
+                    formula: "slope = (y2 - y1)/(x2 - x1)",
+                    description: "Calculates the slope between two points"
+                },
+                pearsonCorrelation: {
+                    name: "Pearson Correlation",
+                    vars: ['r','xData','yData'],
+                    formula: "r = (nΣxy - ΣxΣy)/√[(nΣx²-(Σx)²)(nΣy²-(Σy)²)]",
+                    description: "Calculates the Pearson correlation coefficient between two datasets"
+                },
+                continuousCompounding: {
+                    name: "Continuous Compounding",
+                    vars: ['S','P','c','t'],
+                    formula: "S = P e^(c t)",
+                    description: "Calculates the future value with continuous compounding",
+                    algebra: {
+                        S: "P e^(c t)",
+                        P: "S / e^(c t)",
+                        c: "ln(S/P)/t",
+                        t: "ln(S/P)/c"
+                    }
+                }
+            };
+
+            // ─────────────────────────────────────────────────────────────────
+            // 2) DOM Elements
+            // ─────────────────────────────────────────────────────────────────
+            const formulaList = document.getElementById('formulaList');
+            const currentFormulaDisplay = document.getElementById('currentFormula');
+            const formulaNoteDisplay = document.getElementById('formulaNote');
+            const solveForOptions = document.getElementById('solveForOptions');
+            const inputFields = document.getElementById('inputFields');
+            const calculateBtn = document.getElementById('calculateBtn');
+            const errorDisplay = document.getElementById('errorDisplay');
+            const resultDisplay = document.getElementById('resultDisplay');
+            const calculationSteps = document.getElementById('calculationSteps');
+            const resultValue = document.getElementById('resultValue');
+            const formulaReference = document.getElementById('formulaReference');
+
+            // Current state
+            let currentFormulaKey = 'simpleInterest';
+            let currentSolveFor = 'S';
+
+            // ─────────────────────────────────────────────────────────────────
+            // 3) Initialize the calculator
+            // ─────────────────────────────────────────────────────────────────
+            function initCalculator() {
+                populateFormulaList();
+                populateFormulaReference();
+                updateSolveForOptions();
+                updateInputFields();
+                displayCurrentFormula();
+
+                // Set up event listeners
+                calculateBtn.addEventListener('click', calculate);
+            }
+
+            // Populate the formula list sidebar
+            function populateFormulaList() {
+                Object.keys(formulas).forEach(key => {
+                    const formula = formulas[key];
+                    const item = document.createElement('div');
+                    item.className = `p-3 rounded cursor-pointer ${key === currentFormulaKey ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-100'}`;
+                    item.textContent = formula.name;
+                    item.addEventListener('click', () => {
+                        currentFormulaKey = key;
+                        currentSolveFor = formulas[key].vars[0]; // Reset to first variable
+                        document.querySelectorAll('#formulaList div').forEach(el => el.className = 'p-3 rounded cursor-pointer hover:bg-gray-100');
+                        item.className = 'p-3 rounded cursor-pointer bg-blue-100 text-blue-800';
+                        updateSolveForOptions();
+                        updateInputFields();
+                        displayCurrentFormula();
+                        hideResult();
+                    });
+                    formulaList.appendChild(item);
+                });
+            }
+            function calculateIRR(cashflows, guess=0.1) {
+                const maxIter = 100;
+                const tolerance = 0.00001;
+                let x = guess;
+
+                for (let i = 0; i < maxIter; i++) {
+                    let npv = 0;
+                    let dNpv = 0;
+
+                    for (let t = 0; t < cashflows.length; t++) {
+                        npv += cashflows[t] / Math.pow(1 + x, t);
+                        dNpv += -t * cashflows[t] / Math.pow(1 + x, t + 1);
+                    }
+
+                    const newX = x - npv / dNpv;
+                    if (Math.abs(newX - x) < tolerance) {
+                    return newX;
+                    }
+                    x = newX;
+                }
+                return x;
+            }
+
+            // Populate the formula reference section
+            function populateFormulaReference() {
+                Object.keys(formulas).forEach(key => {
+                    const formula = formulas[key];
+                    const card = document.createElement('div');
+                    card.className = 'formula-card p-4 bg-white rounded-lg border border-gray-200';
+                    card.innerHTML = `
+                        <h3 class="font-medium text-gray-800">${formula.name}</h3>
+                        <div class="text-sm text-gray-600 mt-1">${formula.description}</div>
+                        <div class="mt-2 p-2 bg-gray-50 rounded text-xs font-mono">${formula.formula}</div>
+                    `;
+                    card.addEventListener('click', () => {
+                        currentFormulaKey = key;
+                        currentSolveFor = formulas[key].vars[0];
+                        document.querySelectorAll('#formulaList div').forEach(el => el.className = 'p-3 rounded cursor-pointer hover:bg-gray-100');
+                        formulaList.children[Object.keys(formulas).indexOf(key)].className = 'p-3 rounded cursor-pointer bg-blue-100 text-blue-800';
+                        updateSolveForOptions();
+                        updateInputFields();
+                        displayCurrentFormula();
+                        hideResult();
+                        // Scroll to calculator
+                        document.querySelector('.lg\\:col-span-3').scrollIntoView({ behavior: 'smooth' });
+                    });
+                    formulaReference.appendChild(card);
+                });
+            }
+
+            // Update the solve for radio buttons
+            function updateSolveForOptions() {
+                solveForOptions.innerHTML = '';
+                const formula = formulas[currentFormulaKey];
+                
+                formula.vars.forEach(varKey => {
+                    const optionId = `solve-for-${varKey}`;
+                    const option = document.createElement('div');
+                    option.className = 'flex items-center';
+                    option.innerHTML = `
+                        <input id="${optionId}" name="solve-for" type="radio" value="${varKey}" 
+                            ${varKey === currentSolveFor ? 'checked' : ''}
+                            class="h-4 w-4 text-blue-600 focus:ring-blue-500">
+                        <label for="${optionId}" class="ml-2 block text-sm text-gray-700">
+                            ${varKey}
+                        </label>
+                    `;
+                    
+                    option.querySelector('input').addEventListener('change', function() {
+                        if (this.checked) {
+                            currentSolveFor = this.value;
+                            updateInputFields();
+                            hideResult();
+                        }
+                    });
+                    
+                    solveForOptions.appendChild(option);
+                });
+            }
+
+            // Display the current formula
+            function displayCurrentFormula() {
+                const formula = formulas[currentFormulaKey];
+                currentFormulaDisplay.textContent = formula.formula;
+                
+                if (formula.note) {
+                    formulaNoteDisplay.textContent = `Note: ${formula.note}`;
+                    formulaNoteDisplay.classList.remove('hidden');
+                } else {
+                    formulaNoteDisplay.classList.add('hidden');
+                }
+            }
+
+            // Update the input fields based on what we're solving for
+            function updateInputFields() {
+                inputFields.innerHTML = '';
+                const formula = formulas[currentFormulaKey];
+                
+                formula.vars.forEach(varKey => {
+                    if (varKey !== currentSolveFor) {
+                        const fieldId = `input-${varKey}`;
+                        const fieldGroup = document.createElement('div');
+                        fieldGroup.className = 'space-y-1';
+                        
+                        // Label
+                        const label = document.createElement('label');
+                        label.htmlFor = fieldId;
+                        label.className = 'block text-sm font-medium text-gray-700';
+                        label.textContent = `${varKey}:`;
+                        
+                        // Special handling for certain fields
+                        if (['m', 'm_old', 'm_new'].includes(varKey)) {
+                            // Compounding frequency dropdown
+                            const select = document.createElement('select');
+                            select.id = fieldId;
+                            select.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
+                            
+                            const options = [
+                                { value: 1, text: 'Annually (1)' },
+                                { value: 2, text: 'Semi-Annually (2)' },
+                                { value: 4, text: 'Quarterly (4)' },
+                                { value: 12, text: 'Monthly (12)' },
+                                { value: 52, text: 'Weekly (52)' },
+                                { value: 365, text: 'Daily (365)' }
+                            ];
+                            
+                            options.forEach(opt => {
+                                const option = document.createElement('option');
+                                option.value = opt.value;
+                                option.textContent = opt.text;
+                                select.appendChild(option);
+                            });
+                            
+                            fieldGroup.appendChild(label);
+                            fieldGroup.appendChild(select);
+                        } 
+                        else if (['cashflows', 'data', 'xData', 'yData', 'weights'].includes(varKey)) {
+                            // Array input fields
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.id = fieldId;
+                            input.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
+                            input.placeholder = 'Comma-separated values (e.g., 100,200,300)';
+                            
+                            fieldGroup.appendChild(label);
+                            fieldGroup.appendChild(input);
+                        } 
+                        else {
+                            // Regular number input
+                            const input = document.createElement('input');
+                            input.type = 'number';
+                            input.id = fieldId;
+                            input.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
+                            input.step = 'any';
+                            
+                            // Add % suffix for rate fields
+                            const rateFields = ['r', 'i', 'd', 'j_m', 'c', 'y', 'EAR', 'IRR', 'MIRR', 'slope', 'financeRate', 'reinvestmentRate'];
+                            if (rateFields.includes(varKey)) {
+                                input.placeholder = 'e.g., 5% or 0.05';
+                            }
+                            
+                            fieldGroup.appendChild(label);
+                            fieldGroup.appendChild(input);
+                        }
+                        
+                        // Error message container
+                        const error = document.createElement('div');
+                        error.id = `error-${varKey}`;
+                        error.className = 'text-red-500 text-xs hidden';
+                        fieldGroup.appendChild(error);
+                        
+                        inputFields.appendChild(fieldGroup);
+                    }
+                });
+            }
+
+            // Hide the result display
+            function hideResult() {
+                resultDisplay.classList.add('hidden');
+                errorDisplay.classList.add('hidden');
+            }
+
+            // Show the result display
+            function showResult() {
+                resultDisplay.classList.remove('hidden');
+            }
+
+            // Show error message
+            function showError(message) {
+                errorDisplay.textContent = message;
+                errorDisplay.classList.remove('hidden');
+                resultDisplay.classList.add('hidden');
+            }
+
+            // Hide error message
+            function hideError() {
+                errorDisplay.classList.add('hidden');
+            }
+
+            // Validate inputs
+            function validateInputs() {
+                let isValid = true;
+                const formula = formulas[currentFormulaKey];
+                const rateFields = ['r', 'i', 'd', 'j_m', 'c', 'y', 'EAR', 'IRR', 'MIRR', 'slope', 'financeRate', 'reinvestmentRate'];
+                
+                formula.vars.forEach(varKey => {
+                    if (varKey !== currentSolveFor) {
+                        const input = document.getElementById(`input-${varKey}`);
+                        const error = document.getElementById(`error-${varKey}`);
+                        
+                        // Reset error state
+                        error.classList.add('hidden');
+                        input.classList.remove('border-red-500', 'input-highlight');
+                        
+                        // Skip validation if input doesn't exist (shouldn't happen)
+                        if (!input) return;
+                        
+                        // Special handling for array inputs
+                        if (['cashflows', 'data', 'xData', 'yData', 'weights'].includes(varKey)) {
+                            const values = parseArrayInput(input.value);
+                            if (values.length === 0) {
+                                input.classList.add('border-red-500', 'input-highlight');
+                                error.textContent = 'Please enter valid comma-separated numbers';
+                                error.classList.remove('hidden');
+                                isValid = false;
+                            }
+                            return;
+                        }
+                        
+                        // Check if empty
+                        if (input.value.trim() === '') {
+                            input.classList.add('border-red-500', 'input-highlight');
+                            error.textContent = 'This field is required';
+                            error.classList.remove('hidden');
+                            isValid = false;
+                            return;
+                        }
+                        
+                        // Parse the value
+                        const value = parseInput(input.value, rateFields.includes(varKey));
+                        
+                        // Check if valid number
+                        if (value === null) {
+                            input.classList.add('border-red-500', 'input-highlight');
+                            error.textContent = 'Please enter a valid number';
+                            error.classList.remove('hidden');
+                            isValid = false;
+                            return;
+                        }
+                        
+                        // Additional validation for specific fields
+                        if (varKey === 'i' || varKey === 'r' || varKey === 'j_m' || varKey === 'd' || varKey === 'y') {
+                            if (value <= -1) {
+                                input.classList.add('border-red-500', 'input-highlight');
+                                error.textContent = 'Rate must be greater than -1 (100%)';
+                                error.classList.remove('hidden');
+                                isValid = false;
+                            }
+                        }
+                        
+                        if (varKey === 't' || varKey === 'n') {
+                            if (value <= 0) {
+                                input.classList.add('border-red-500', 'input-highlight');
+                                error.textContent = 'Time must be positive';
+                                error.classList.remove('hidden');
+                                isValid = false;
+                            }
+                        }
+                        
+                        if (varKey === 'm' || varKey === 'm_old' || varKey === 'm_new') {
+                            if (value <= 0) {
+                                input.classList.add('border-red-500', 'input-highlight');
+                                error.textContent = 'Compounding periods must be positive';
+                                error.classList.remove('hidden');
+                                isValid = false;
+                            }
+                        }
+                    }
+                });
+                
+                return isValid;
+            }
+
+            // Parse single value; if isRate, accept "5%", "5", "0.05" → always decimal
+            function parseInput(val, isRate = false) {
+                if (val == null) return null;
+                const s = val.trim();
+                if (!s) return null;
+                if (s.endsWith('%')) {
+                    const n = parseFloat(s.slice(0, -1));
+                    return isNaN(n) ? null : n / 100;
+                }
+                const n = parseFloat(s);
+                if (isNaN(n)) return null;
+                return (isRate && n > 1) ? n / 100 : n;
+            }
+
+            // Parse comma-list into number[]
+            function parseArrayInput(val) {
+                return !val ? [] : val.split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x));
+            }
+
+            // Calculate MIRR (special case)
+            function calculateMIRR(cashflows, financeRate, reinvestRate) {
+                const n = cashflows.length - 1;
+                let pvNeg = 0, fvPos = 0;
+                cashflows.forEach((cf, t) => {
+                    if (cf < 0) pvNeg += cf / Math.pow(1 + financeRate, t);
+                    else if (cf > 0) fvPos += cf * Math.pow(1 + reinvestRate, n - t);
+                });
+                pvNeg = -pvNeg;
+                return Math.pow(fvPos / pvNeg, 1 / n) - 1;
+            }
+
+            // Main calculation function
+            function calculate() {
+                hideError();
+                hideResult();
+                
+                if (!validateInputs()) {
+                    showError('Please fix the errors in the input fields');
+                    return;
+                }
+                
+                const formula = formulas[currentFormulaKey];
+                const solveFor = currentSolveFor;
+                const inputs = {};
+                
+                // Gather all input values
+                formula.vars.forEach(varKey => {
+                    if (varKey !== solveFor) {
+                        const input = document.getElementById(`input-${varKey}`);
+                        
+                        if (['cashflows', 'data', 'xData', 'yData', 'weights'].includes(varKey)) {
+                            inputs[varKey] = parseArrayInput(input.value);
+                        } 
+                        else if (['m', 'm_old', 'm_new'].includes(varKey)) {
+                            // For select elements
+                            inputs[varKey] = parseFloat(input.value);
+                        } 
+                        else {
+                            const rateFields = ['r', 'i', 'd', 'j_m', 'c', 'y', 'EAR', 'IRR', 'MIRR', 'slope', 'financeRate', 'reinvestmentRate'];
+                            inputs[varKey] = parseInput(input.value, rateFields.includes(varKey));
+                        }
+                    }
+                });
+                
+                // Perform the calculation
+                let result, steps;
+                try {
+                    switch (currentFormulaKey) {
+                        case 'simpleInterest':
+                            if (solveFor === 'S') {
+                                result = inputs.P * (1 + inputs.r * inputs.t);
+                                steps = `S = P(1 + r·t) = ${inputs.P} × (1 + ${inputs.r} × ${inputs.t}) = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'P') {
+                                result = inputs.S / (1 + inputs.r * inputs.t);
+                                steps = `P = S/(1 + r·t) = ${inputs.S} / (1 + ${inputs.r} × ${inputs.t}) = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'r') {
+                                result = (inputs.S / inputs.P - 1) / inputs.t;
+                                steps = `r = (S/P - 1)/t = (${inputs.S}/${inputs.P} - 1)/${inputs.t} = ${result.toFixed(6)}`;
+                            } else {
+                                result = (inputs.S / inputs.P - 1) / inputs.r;
+                                steps = `t = (S/P - 1)/r = (${inputs.S}/${inputs.P} - 1)/${inputs.r} = ${result.toFixed(2)}`;
+                            }
+                            break;
+
+                        case 'compoundInterest':
+                            const base = 1 + inputs.j_m / inputs.m;
+                            const exp = inputs.m * inputs.t;
+                            if (solveFor === 'S') {
+                                result = inputs.P * Math.pow(base, exp);
+                                steps = `S = P(1 + jₘ/m)^(m·t) = ${inputs.P} × (1 + ${inputs.j_m}/${inputs.m})^(${inputs.m}×${inputs.t}) = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'P') {
+                                result = inputs.S / Math.pow(base, exp);
+                                steps = `P = S/(1 + jₘ/m)^(m·t) = ${inputs.S} / (1 + ${inputs.j_m}/${inputs.m})^(${inputs.m}×${inputs.t}) = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'j_m') {
+                                result = inputs.m * (Math.pow(inputs.S / inputs.P, 1 / exp) - 1);
+                                steps = `jₘ = m((S/P)^(1/(m·t))-1) = ${inputs.m} × ((${inputs.S}/${inputs.P})^(1/(${inputs.m}×${inputs.t})) - 1) = ${result.toFixed(6)}`;
+                            } else if (solveFor === 't') {
+                                result = Math.log(inputs.S / inputs.P) / (inputs.m * Math.log(base));
+                                steps = `t = ln(S/P)/(m·ln(1 + jₘ/m)) = ln(${inputs.S}/${inputs.P})/(${inputs.m} × ln(1 + ${inputs.j_m}/${inputs.m})) = ${result.toFixed(2)}`;
+                            } else {
+                                // m - requires iterative solution
+                                showError('Solving for compounding frequency (m) requires an iterative solution and is not implemented here.');
+                                return;
+                            }
+                            break;
+
+                        case 'simpleDiscount':
+                            if (solveFor === 'P') {
+                                result = inputs.S * (1 - inputs.d * inputs.t);
+                                steps = `P = S(1 - d·t) = ${inputs.S} × (1 - ${inputs.d} × ${inputs.t}) = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'S') {
+                                result = inputs.P / (1 - inputs.d * inputs.t);
+                                steps = `S = P/(1 - d·t) = ${inputs.P} / (1 - ${inputs.d} × ${inputs.t}) = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'd') {
+                                result = (1 - inputs.P / inputs.S) / inputs.t;
+                                steps = `d = (1 - P/S)/t = (1 - ${inputs.P}/${inputs.S})/${inputs.t} = ${result.toFixed(6)}`;
+                            } else {
+                                result = (1 - inputs.P / inputs.S) / inputs.d;
+                                steps = `t = (1 - P/S)/d = (1 - ${inputs.P}/${inputs.S})/${inputs.d} = ${result.toFixed(2)}`;
+                            }
+                            break;
+
+                        case 'effectiveInterestRate':
+                            if (solveFor === 'EAR') {
+                                result = Math.pow(1 + inputs.j_m / inputs.m, inputs.m) - 1;
+                                steps = `EAR = (1 + jₘ/m)^m - 1 = (1 + ${inputs.j_m}/${inputs.m})^${inputs.m} - 1 = ${result.toFixed(6)}`;
+                            } else if (solveFor === 'j_m') {
+                                result = inputs.m * (Math.pow(1 + inputs.EAR, 1 / inputs.m) - 1);
+                                steps = `jₘ = m((1 + EAR)^(1/m)-1) = ${inputs.m} × ((1 + ${inputs.EAR})^(1/${inputs.m}) - 1) = ${result.toFixed(6)}`;
+                            } else {
+                                // m - requires iterative solution
+                                showError('Solving for compounding frequency (m) requires an iterative solution and is not implemented here.');
+                                return;
+                            }
+                            break;
+
+                        case 'convertContToEffective':
+                            if (solveFor === 'EAR') {
+                                result = Math.exp(inputs.c) - 1;
+                                steps = `EAR = e^c - 1 = e^${inputs.c} - 1 = ${result.toFixed(6)}`;
+                            } else {
+                                result = Math.log(1 + inputs.EAR);
+                                steps = `c = ln(1 + EAR) = ln(1 + ${inputs.EAR}) = ${result.toFixed(6)}`;
+                            }
+                            break;
+
+                        case 'convertingInterest':
+                            if (solveFor === 'i_new') {
+                                result = inputs.m_new * (Math.pow(1 + inputs.i_old / inputs.m_old, inputs.m_old / inputs.m_new) - 1);
+                                steps = `i_new = m_new((1 + i_old/m_old)^(m_old/m_new)-1) = ${inputs.m_new} × ((1 + ${inputs.i_old}/${inputs.m_old})^(${inputs.m_old}/${inputs.m_new}) - 1) = ${result.toFixed(6)}`;
+                            } else if (solveFor === 'i_old') {
+                                result = inputs.m_old * (Math.pow(1 + inputs.i_new / inputs.m_new, inputs.m_new / inputs.m_old) - 1);
+                                steps = `i_old = m_old((1 + i_new/m_new)^(m_new/m_old)-1) = ${inputs.m_old} × ((1 + ${inputs.i_new}/${inputs.m_new})^(${inputs.m_new}/${inputs.m_old}) - 1) = ${result.toFixed(6)}`;
+                            } else {
+                                showError('Solving for compounding frequencies requires an iterative solution and is not implemented here.');
+                                return;
+                            }
+                            break;
+
+                        case 'futureValueAnnuity':
+                            if (solveFor === 'S') {
+                                result = inputs.R * (Math.pow(1 + inputs.i, inputs.n) - 1) / inputs.i;
+                                steps = `S = R[(1 + i)^n - 1]/i = ${inputs.R} × [(1 + ${inputs.i})^${inputs.n} - 1] / ${inputs.i} = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'R') {
+                                result = inputs.S * inputs.i / (Math.pow(1 + inputs.i, inputs.n) - 1);
+                                steps = `R = Si/[(1 + i)^n - 1] = ${inputs.S} × ${inputs.i} / [(1 + ${inputs.i})^${inputs.n} - 1] = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'n') {
+                                result = Math.log(1 + inputs.S * inputs.i / inputs.R) / Math.log(1 + inputs.i);
+                                steps = `n = ln(1 + S·i/R)/ln(1 + i) = ln(1 + ${inputs.S}×${inputs.i}/${inputs.R}) / ln(1 + ${inputs.i}) = ${result.toFixed(2)}`;
+                            } else {
+                                // i - requires iterative solution
+                                showError('Solving for interest rate (i) requires an iterative solution and is not implemented here.');
+                                return;
+                            }
+                            break;
+
+                        case 'presentValueAnnuity':
+                            if (solveFor === 'P') {
+                                result = inputs.R * (1 - Math.pow(1 + inputs.i, -inputs.n)) / inputs.i;
+                                steps = `P = R[1 - (1 + i)^-n]/i = ${inputs.R} × [1 - (1 + ${inputs.i})^-${inputs.n}] / ${inputs.i} = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'R') {
+                                result = inputs.P * inputs.i / (1 - Math.pow(1 + inputs.i, -inputs.n));
+                                steps = `R = Pi/[1 - (1 + i)^-n] = ${inputs.P} × ${inputs.i} / [1 - (1 + ${inputs.i})^-${inputs.n}] = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'n') {
+                                result = -Math.log(1 - inputs.P * inputs.i / inputs.R) / Math.log(1 + inputs.i);
+                                steps = `n = -ln(1 - P·i/R)/ln(1 + i) = -ln(1 - ${inputs.P}×${inputs.i}/${inputs.R}) / ln(1 + ${inputs.i}) = ${result.toFixed(2)}`;
+                            } else {
+                                // i - requires iterative solution
+                                showError('Solving for interest rate (i) requires an iterative solution and is not implemented here.');
+                                return;
+                            }
+                            break;
+
+                        case 'annuityDue':
+                            if (solveFor === 'S') {
+                                const fv = inputs.R * (Math.pow(1 + inputs.i, inputs.n) - 1) / inputs.i;
+                                result = fv * (1 + inputs.i);
+                                steps = `S = [R((1 + i)^n - 1)/i](1 + i) = [${inputs.R}×((1 + ${inputs.i})^${inputs.n} - 1)/${inputs.i}] × (1 + ${inputs.i}) = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'R') {
+                                const denom = (Math.pow(1 + inputs.i, inputs.n) - 1) / inputs.i * (1 + inputs.i);
+                                result = inputs.S / denom;
+                                steps = `R = S/([((1 + i)^n - 1)/i](1 + i)) = ${inputs.S} / [((1 + ${inputs.i})^${inputs.n} - 1)/${inputs.i} × (1 + ${inputs.i})] = ${result.toFixed(2)}`;
+                            } else {
+                                showError('Solving for interest rate (i) or periods (n) requires an iterative solution and is not implemented here.');
+                                return;
+                            }
+                            break;
+
+                        case 'increasingAnnuity':
+                            showError('Increasing Annuity requires iterative solution and is not implemented here.');
+                            return;
+
+                        case 'perpetuity':
+                            if (solveFor === 'P') {
+                                result = inputs.R / inputs.i;
+                                steps = `P = R/i = ${inputs.R} / ${inputs.i} = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'R') {
+                                result = inputs.P * inputs.i;
+                                steps = `R = P·i = ${inputs.P} × ${inputs.i} = ${result.toFixed(2)}`;
+                            } else {
+                                result = inputs.R / inputs.P;
+                                steps = `i = R/P = ${inputs.R} / ${inputs.P} = ${result.toFixed(6)}`;
+                            }
+                            break;
+
+                        case 'netPresentValue':
+                            if (solveFor === 'NPV') {
+                                result = inputs.cashflows.reduce((sum, cf, t) => sum + cf / Math.pow(1 + inputs.r, t + 1), 0);
+                                steps = `NPV = Σ CFₜ/(1 + r)^t = ${inputs.cashflows.map((cf, t) => `${cf}/(1+${inputs.r})^${t+1}`).join(' + ')} = ${result.toFixed(2)}`;
+                            } else {
+                                showError('Solving for discount rate (r) requires iterative solution and is not implemented here.');
+                                return;
+                            }
+                            break;
+
+                        case 'profitabilityIndex':
+                            if (solveFor === 'PI') {
+                                result = (inputs.NPV + inputs.initialInvestment) / inputs.initialInvestment;
+                                steps = `PI = (NPV + I₀)/I₀ = (${inputs.NPV} + ${inputs.initialInvestment}) / ${inputs.initialInvestment} = ${result.toFixed(4)}`;
+                            } else {
+                                result = inputs.PI * inputs.initialInvestment - inputs.initialInvestment;
+                                steps = `NPV = PI·I₀ - I₀ = ${inputs.PI} × ${inputs.initialInvestment} - ${inputs.initialInvestment} = ${result.toFixed(2)}`;
+                            }
+                            break;
+
+                       case 'internalRateReturn':
+                            if (solveFor==='IRR') {
+                                const cashflows = inputs.cashflows;
+                                if (!cashflows || cashflows.length < 2) {
+                                    showError('Enter at least two cash flows for IRR.');
+                                return;
+                                }
+                                const irr = calculateIRR(cashflows, 0.1); // guess = 0.1 (10%)
+                                result = irr;
+                                steps = `IRR ≈ ${(irr * 100).toFixed(4)}%`;
+                            }
+                            break;
+
+                        case 'mIRR':
+                            if (solveFor === 'MIRR') {
+                                result = calculateMIRR(inputs.cashflows, inputs.financeRate, inputs.reinvestmentRate);
+                                steps = `MIRR = (FV⁺/PV⁻)^(1/n) - 1\n`;
+                                steps += `Based on cash flows: [${inputs.cashflows.join(', ')}]\n`;
+                                steps += `Finance rate: ${inputs.financeRate}, Reinvestment rate: ${inputs.reinvestmentRate}\n`;
+                                steps += `MIRR = ${result.toFixed(6)} or ${(result * 100).toFixed(4)}%`;
+                            } else {
+                                showError('MIRR calculation requires cash flows, finance rate and reinvestment rate as inputs.');
+                                return;
+                            }
+                            break;
+
+                        case 'bondPrice':
+                            if (solveFor === 'P') {
+                                const pvC = inputs.C * (1 - Math.pow(1 + inputs.y, -inputs.n)) / inputs.y;
+                                const pvF = inputs.F / Math.pow(1 + inputs.y, inputs.n);
+                                result = pvC + pvF;
+                                steps = `P = C(1 - (1+y)^-n)/y + F/(1+y)^n\n`;
+                                steps += `= ${inputs.C}×(1 - (1+${inputs.y})^-${inputs.n})/${inputs.y} + ${inputs.F}/(1+${inputs.y})^${inputs.n}\n`;
+                                steps += `= ${pvC.toFixed(2)} + ${pvF.toFixed(2)} = ${result.toFixed(2)}`;
+                            } else {
+                                showError('Solving for bond characteristics requires iterative solution and is not implemented here.');
+                                return;
+                            }
+                            break;
+
+                        case 'accruedInterest':
+                            if (solveFor === 'AI') {
+                                result = inputs.C * (inputs.daysAccrued / inputs.daysInPeriod);
+                                steps = `AI = C·(daysAccrued/daysInPeriod) = ${inputs.C} × (${inputs.daysAccrued}/${inputs.daysInPeriod}) = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'C') {
+                                result = inputs.AI / (inputs.daysAccrued / inputs.daysInPeriod);
+                                steps = `C = AI/(daysAccrued/daysInPeriod) = ${inputs.AI} / (${inputs.daysAccrued}/${inputs.daysInPeriod}) = ${result.toFixed(2)}`;
+                            } else {
+                                showError('Solving for days requires additional information not provided in this formula.');
+                                return;
+                            }
+                            break;
+
+                        case 'realCostOfLoan':
+                            showError('Real Cost of Loan requires iterative solution and is not implemented here.');
+                            return;
+
+                        case 'arithmeticMean':
+                            if (solveFor === 'mean') {
+                                const sum = inputs.data.reduce((a, b) => a + b, 0);
+                                result = sum / inputs.data.length;
+                                steps = `mean = Σxᵢ/n = (${inputs.data.join(' + ')}) / ${inputs.data.length} = ${result.toFixed(4)}`;
+                            } else {
+                                showError('Arithmetic mean requires data array as input.');
+                                return;
+                            }
+                            break;
+
+                        case 'weightedMean':
+                            if (solveFor === 'weightedMean') {
+                                if (inputs.data.length !== inputs.weights.length) {
+                                    showError('Data and weights arrays must have the same length');
+                                    return;
+                                }
+                                const sp = inputs.data.reduce((s, v, i) => s + v * inputs.weights[i], 0);
+                                const sw = inputs.weights.reduce((s, v) => s + v, 0);
+                                result = sp / sw;
+                                steps = `weightedMean = Σ(xᵢ·wᵢ)/Σwᵢ\n`;
+                                steps += `= (${inputs.data.map((v, i) => `${v}×${inputs.weights[i]}`).join(' + ')}) / (${inputs.weights.join(' + ')})\n`;
+                                steps += `= ${sp.toFixed(2)} / ${sw.toFixed(2)} = ${result.toFixed(4)}`;
+                            } else {
+                                showError('Weighted mean requires data and weights arrays as inputs.');
+                                return;
+                            }
+                            break;
+
+                        case 'variance':
+                            if (solveFor === 'variance') {
+                                const m = inputs.data.reduce((a, b) => a + b, 0) / inputs.data.length;
+                                const ss = inputs.data.reduce((s, v) => s + Math.pow(v - m, 2), 0);
+                                result = ss / (inputs.data.length - 1);
+                                steps = `variance = Σ(xᵢ - mean)²/(n-1)\n`;
+                                steps += `mean = ${m.toFixed(4)}\n`;
+                                steps += `= ${inputs.data.map(v => `(${v.toFixed(2)}-${m.toFixed(2)})²`).join(' + ')} / ${inputs.data.length - 1}\n`;
+                                steps += `= ${ss.toFixed(4)} / ${inputs.data.length - 1} = ${result.toFixed(4)}`;
+                            } else {
+                                showError('Variance requires data array as input.');
+                                return;
+                            }
+                            break;
+
+                        case 'standardDeviation':
+                            if (solveFor === 'stdDev') {
+                                const m = inputs.data.reduce((a, b) => a + b, 0) / inputs.data.length;
+                                const ss = inputs.data.reduce((s, v) => s + Math.pow(v - m, 2), 0);
+                                const varr = ss / (inputs.data.length - 1);
+                                result = Math.sqrt(varr);
+                                steps = `stdDev = √variance\n`;
+                                steps += `variance = ${varr.toFixed(4)}\n`;
+                                steps += `= √${varr.toFixed(4)} = ${result.toFixed(4)}`;
+                            } else {
+                                showError('Standard deviation requires data array as input.');
+                                return;
+                            }
+                            break;
+
+                        case 'slopeLine':
+                            if (solveFor === 'slope') {
+                                result = (inputs.y2 - inputs.y1) / (inputs.x2 - inputs.x1);
+                                steps = `slope = (y₂ - y₁)/(x₂ - x₁) = (${inputs.y2} - ${inputs.y1})/(${inputs.x2} - ${inputs.x1}) = ${result.toFixed(4)}`;
+                            } else if (solveFor === 'y2') {
+                                result = inputs.y1 + inputs.slope * (inputs.x2 - inputs.x1);
+                                steps = `y₂ = y₁ + slope·(x₂ - x₁) = ${inputs.y1} + ${inputs.slope} × (${inputs.x2} - ${inputs.x1}) = ${result.toFixed(4)}`;
+                            } else if (solveFor === 'x2') {
+                                result = inputs.x1 + (inputs.y2 - inputs.y1) / inputs.slope;
+                                steps = `x₂ = x₁ + (y₂ - y₁)/slope = ${inputs.x1} + (${inputs.y2} - ${inputs.y1}) / ${inputs.slope} = ${result.toFixed(4)}`;
+                            } else {
+                                showError('Solving for other points requires more information.');
+                                return;
+                            }
+                            break;
+
+                        case 'pearsonCorrelation':
+                            if (solveFor === 'r') {
+                                if (inputs.xData.length !== inputs.yData.length) {
+                                    showError('X and Y data arrays must have the same length');
+                                    return;
+                                }
+                                const n = inputs.xData.length;
+                                const sx = inputs.xData.reduce((a, b) => a + b, 0);
+                                const sy = inputs.yData.reduce((a, b) => a + b, 0);
+                                const sxy = inputs.xData.reduce((s, v, i) => s + v * inputs.yData[i], 0);
+                                const sx2 = inputs.xData.reduce((s, v) => s + v * v, 0);
+                                const sy2 = inputs.yData.reduce((s, v) => s + v * v, 0);
+                                const num = n * sxy - sx * sy;
+                                const den = Math.sqrt((n * sx2 - sx * sx) * (n * sy2 - sy * sy));
+                                result = num / den;
+                                
+                                steps = `r = (nΣxy - ΣxΣy)/√[(nΣx²-(Σx)²)(nΣy²-(Σy)²)]\n`;
+                                steps += `n = ${n}, Σx = ${sx.toFixed(2)}, Σy = ${sy.toFixed(2)}\n`;
+                                steps += `Σxy = ${sxy.toFixed(2)}, Σx² = ${sx2.toFixed(2)}, Σy² = ${sy2.toFixed(2)}\n`;
+                                steps += `= (${n}×${sxy.toFixed(2)} - ${sx.toFixed(2)}×${sy.toFixed(2)})/√[(${n}×${sx2.toFixed(2)}-${sx.toFixed(2)}²)×(${n}×${sy2.toFixed(2)}-${sy.toFixed(2)}²)]\n`;
+                                steps += `= ${num.toFixed(4)} / ${den.toFixed(4)} = ${result.toFixed(4)}`;
+                            } else {
+                                showError('Pearson correlation requires xData and yData arrays as inputs.');
+                                return;
+                            }
+                            break;
+
+                        case 'continuousCompounding':
+                            if (solveFor === 'S') {
+                                result = inputs.P * Math.exp(inputs.c * inputs.t);
+                                steps = `S = P·e^(c·t) = ${inputs.P} × e^(${inputs.c} × ${inputs.t}) = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'P') {
+                                result = inputs.S / Math.exp(inputs.c * inputs.t);
+                                steps = `P = S/e^(c·t) = ${inputs.S} / e^(${inputs.c} × ${inputs.t}) = ${result.toFixed(2)}`;
+                            } else if (solveFor === 'c') {
+                                result = Math.log(inputs.S / inputs.P) / inputs.t;
+                                steps = `c = ln(S/P)/t = ln(${inputs.S}/${inputs.P}) / ${inputs.t} = ${result.toFixed(6)}`;
+                            } else {
+                                result = Math.log(inputs.S / inputs.P) / inputs.c;
+                                steps = `t = ln(S/P)/c = ln(${inputs.S}/${inputs.P}) / ${inputs.c} = ${result.toFixed(2)}`;
+                            }
+                            break;
+
+                        default:
+                            showError('Calculation for this formula is not implemented yet.');
+                            return;
+                    }
+                } catch (e) {
+                    showError('Error in calculation: ' + e.message);
+                    return;
+                }
+                
+                // Determine if the variable is a percentage or amount
+                const rateVariables = ['r', 'i', 'd', 'j_m', 'c', 'y', 'EAR', 'IRR', 'MIRR', 'slope'];
+                const isPercentage = rateVariables.includes(solveFor);
+
+                // Format the display value
+                const displayValue = isPercentage ? (result*100).toFixed(2)+'%' : result.toFixed(2);
+
+                // Show the results
+                calculationSteps.textContent = steps;
+                resultValue.textContent = `${solveFor} = ${displayValue}`;
+                showResult();
+            }
+
+            // Initialize the calculator
+            initCalculator();
+        });
+    </script>
+<footer style="text-align: center; padding: 20px; background-color: #f5f5f5; margin-top: 30px; font-family: Arial, sans-serif;">
+  <div style="color: #666; font-size: 14px;">
+    <p>© 2025 by Mtjitji & Panda </p>
+  </div>
+</footer>
+</body>
+</html>
